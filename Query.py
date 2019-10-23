@@ -11,9 +11,9 @@ class Query:
         self.filters = filters
 
     def __str__(self):
-        events_str = " OR ".join(self.clauses)
+        clauses_str = " OR ".join((str(c) for c in self.clauses))
         filters_str = " AND ".join((str(f) for f in self.filters))
-        return QUERY_TEMPLATE.format(events_str, filters_str)
+        return QUERY_TEMPLATE.format(clauses_str, filters_str)
 
 
 class Clause:
@@ -22,7 +22,7 @@ class Clause:
         self.sep = sep
 
     def _join_atoms(self):
-        return " {} ".format(self.sep).join(self.atoms)
+        return " {} ".format(self.sep).join((str(a) for a in self.atoms))
 
     def __str__(self):
         atoms_str = self._join_atoms()
@@ -30,21 +30,25 @@ class Clause:
 
 
 class EventClause(Clause):
-    def _with_kleene(self):
-        kleene = random() < KLEENE_PROB
-        return str(self) + ("+" if kleene else "")
+    def __init__(self, atoms=[], sep=";"):
+        super().__init__(atoms, sep)
+
+    def _has_kleene(self):
+        kleene = random.random_sample() < KLEENE_PROB
+        return "+" if kleene else ""
 
     def __str__(self):
-        return self._with_kleene()
+        kleene = self._has_kleene()
+        return super().__str__() + kleene
 
 
 class Event:
     def __init__(self, event_type, count):
         self.type = event_type
-        self.alias = event_type + str(count)
+        self.alias = "{}_{}".format(event_type, str(count))
 
     def __str__(self):
-        return "{} AS {}".format(self.type, self.alias)
+        return "({} AS {})".format(self.type, self.alias)
 
 
 class QueryFilter:
@@ -54,4 +58,4 @@ class QueryFilter:
         self.hi = hi
 
     def __str__(self):
-        return FILTER_TEMPLATE.format(self.event, self.low, self.hi)
+        return FILTER_TEMPLATE.format(self.event.alias, self.low, self.hi)

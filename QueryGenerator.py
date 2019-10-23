@@ -1,10 +1,10 @@
 from numpy import random, where
-from Query import Query, QueryFilter, Clause, EventClause
+from Query import Query, QueryFilter, Clause, EventClause, Event
 from QueryDataProvider import QueryDataProvider
 
 OUT_FILE = "docs/query.txt"
 DESC_FILE = "docs/StreamDescription.txt"
-NUM_QUERIES = 100
+NUM_QUERIES = 10
 NUM_EVENTS = (1, 10)
 NUM_FL_CLAUSE = (1, 10)
 NUM_SL_CLAUSE = (2, 20)
@@ -24,6 +24,7 @@ class QueryFactory:
 
     def build_queries(self, n=NUM_QUERIES):
         queries = [str(self._build_query()) for _ in range(n)]
+        print(queries)
         self._write_queries(queries)
 
     def build_stream_description(self):
@@ -47,7 +48,7 @@ class QueryFactory:
         return low, hi
 
     def _build_query_filter(self, event):
-        bins = self.histograms[event]
+        bins = self.histograms[event.type]
         low, hi = self._get_bin(bins)
         query_filter = QueryFilter(event, low, hi)
         return query_filter
@@ -56,7 +57,7 @@ class QueryFactory:
         query_clauses = self._get_query_clauses()
         # Determine which aliases will have filter, then create filters
         query_filters = [self._build_query_filter(
-            clause) for clause in query_clauses]
+            ev) for ev in self.CF.events]
         query = Query(query_clauses, query_filters)
         return query
 
@@ -72,6 +73,7 @@ class ClauseFactory:
         self.events = []
 
     def build_clauses(self):
+        self._reset()
         # fl = first level, sl = second level
         num_fl_clauses = self._get_clause_number(*NUM_FL_CLAUSE, 2)
         fl_clauses = []
@@ -85,6 +87,10 @@ class ClauseFactory:
 
         return fl_clauses
 
+    def _reset(self):
+        self.event_counter = {ev: 0 for ev in self.event_types}
+        self.events = []
+
     def _get_clause_events(self):
         num_events = self._get_clause_number(*NUM_EVENTS, 1)
         clause_event_types = random.choice(self.event_types, num_events,
@@ -93,10 +99,17 @@ class ClauseFactory:
         return clause_events
 
     def _build_clause_events(self, event_types):
-        return event_types
+        clause_events = []
+        for ev in event_types:
+            self.event_counter[ev] += 1
+            event = Event(ev, self.event_counter[ev])
+            clause_events.append(event)
+        self.events.extend(clause_events)
+        return clause_events
 
     def _get_clause_number(self, m, M, k):
         k = random.randint(m, M+1)
+        random.zipf
         return k
 
 
