@@ -6,24 +6,45 @@ FILTER_TEMPLATE = "( {0}[value >= {1}] AND {0}[value <= {2}] )"
 
 
 class Query:
-    def __init__(self, events, filters):
-        self.events = events
+    def __init__(self, clauses, filters):
+        self.clauses = clauses
         self.filters = filters
 
-    def _sequence_query(self):
-        return " ; ".join(self.events)
-
-    def _or_query(self):
-        return " OR ".join(self.events)
-
-    def _add_kleene(self, query):
-        kleene = random() < KLEENE_PROB
-        return query + ("+" if kleene else "")
-
     def __str__(self):
-        events_str = self._sequence_query()
+        events_str = " OR ".join(self.clauses)
         filters_str = " AND ".join((str(f) for f in self.filters))
         return QUERY_TEMPLATE.format(events_str, filters_str)
+
+
+class Clause:
+    def __init__(self, atoms=[], sep=";"):
+        self.atoms = atoms
+        self.sep = sep
+
+    def _join_atoms(self):
+        return " {} ".format(self.sep).join(self.atoms)
+
+    def __str__(self):
+        atoms_str = self._join_atoms()
+        return "( {} )".format(atoms_str)
+
+
+class EventClause(Clause):
+    def _with_kleene(self):
+        kleene = random() < KLEENE_PROB
+        return str(self) + ("+" if kleene else "")
+
+    def __str__(self):
+        return self._with_kleene()
+
+
+class Event:
+    def __init__(self, event_type, count):
+        self.type = event_type
+        self.alias = event_type + str(count)
+
+    def __str__(self):
+        return "{} AS {}".format(self.type, self.alias)
 
 
 class QueryFilter:
