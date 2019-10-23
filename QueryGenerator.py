@@ -5,7 +5,7 @@ from QueryDataProvider import QueryDataProvider
 
 OUT_FILE = "docs/query.txt"
 DESC_FILE = "docs/StreamDescription.txt"
-NUM_QUERIES = 10
+NUM_QUERIES = 50
 RANGE_EVENTS = (1, 11)
 RANGE_FL_CLAUSE = (1, 11)
 RANGE_SL_CLAUSE = (2, 21)
@@ -25,7 +25,6 @@ class QueryFactory:
 
     def build_queries(self, n=NUM_QUERIES):
         queries = [str(self._build_query()) for _ in range(n)]
-        print(queries)
         self._write_queries(queries)
 
     def build_stream_description(self):
@@ -50,11 +49,17 @@ class QueryFactory:
         query_filter = QueryFilter(event, low, hi)
         return query_filter
 
+    def _build_query_filters(self):
+        query_filters = []
+        for ev in self.CF.events:
+            has_filter = random.random_sample() < FILTER_PROB
+            if has_filter:
+                query_filters.append(self._build_query_filter(ev))
+        return query_filters
+
     def _build_query(self):
         query_clauses = self.CF.build_clauses()
-        # Determine which aliases will have filter, then create filters
-        query_filters = [self._build_query_filter(
-            ev) for ev in self.CF.events]
+        query_filters = self._build_query_filters()
         query = Query(query_clauses, query_filters)
         return query
 
