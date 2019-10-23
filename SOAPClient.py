@@ -47,7 +47,7 @@ class LatinaClient(Client):
         for d in data:
             new = {
                 "Stream": "S",
-                "Variable": "".join([i.capitalize() for i in d["variableName"].split(" ")]),
+                "Variable": "".join([i.capitalize() for i in d["variableName"].split(" ")]),  # noqa
                 "Fecha": d["measuredTime"],
                 "id": d["id"],
                 "Sitio": d["siteName"],
