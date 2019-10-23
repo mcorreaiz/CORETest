@@ -1,13 +1,14 @@
-from numpy import random, where
+from numpy import random, where, arange
+import scipy.stats as stats
 from Query import Query, QueryFilter, Clause, EventClause, Event
 from QueryDataProvider import QueryDataProvider
 
 OUT_FILE = "docs/query.txt"
 DESC_FILE = "docs/StreamDescription.txt"
 NUM_QUERIES = 10
-NUM_EVENTS = (1, 10)
-NUM_FL_CLAUSE = (1, 10)
-NUM_SL_CLAUSE = (2, 20)
+RANGE_EVENTS = (1, 11)
+RANGE_FL_CLAUSE = (1, 11)
+RANGE_SL_CLAUSE = (2, 21)
 FILTER_PROB = 3 / 4
 
 EVENT_DECLARE_TEMPLATE = "DECLARE EVENT {}(id long, sitio string, value double)\n"  # noqa
@@ -34,10 +35,6 @@ class QueryFactory:
                 arch.write(EVENT_DECLARE_TEMPLATE.format(ev))
             arch.write(STREAM_DECLARE_TEMPLATE.format(events_str))
 
-    def _get_query_clauses(self):
-        clauses = self.CF.build_clauses()
-        return clauses
-
     def _get_bin(self, histogram):
         num_obs = sum(histogram[0])
         observations, bins = histogram
@@ -54,7 +51,7 @@ class QueryFactory:
         return query_filter
 
     def _build_query(self):
-        query_clauses = self._get_query_clauses()
+        query_clauses = self.CF.build_clauses()
         # Determine which aliases will have filter, then create filters
         query_filters = [self._build_query_filter(
             ev) for ev in self.CF.events]
@@ -71,14 +68,15 @@ class ClauseFactory:
         self.event_types = event_types
         self.event_counter = {ev: 0 for ev in self.event_types}
         self.events = []
+        self.samplers = dict()
 
     def build_clauses(self):
         self._reset()
         # fl = first level, sl = second level
-        num_fl_clauses = self._get_clause_number(*NUM_FL_CLAUSE, 2)
+        num_fl_clauses = self._get_clause_number(RANGE_FL_CLAUSE, 2)
         fl_clauses = []
         for _ in range(num_fl_clauses):
-            num_sl_clauses = self._get_clause_number(*NUM_SL_CLAUSE, 1)
+            num_sl_clauses = self._get_clause_number(RANGE_SL_CLAUSE, 1)
             sl_clauses = []
             for _ in range(num_sl_clauses):
                 clause_events = self._get_clause_events()
@@ -92,7 +90,7 @@ class ClauseFactory:
         self.events = []
 
     def _get_clause_events(self):
-        num_events = self._get_clause_number(*NUM_EVENTS, 1)
+        num_events = self._get_clause_number(RANGE_EVENTS, 1)
         clause_event_types = random.choice(self.event_types, num_events,
                                            replace=False)
         clause_events = self._build_clause_events(clause_event_types)
@@ -107,10 +105,20 @@ class ClauseFactory:
         self.events.extend(clause_events)
         return clause_events
 
-    def _get_clause_number(self, m, M, k):
-        k = random.randint(m, M+1)
-        random.zipf
-        return k
+    def _get_clause_number(self, sample_range, k):
+        sampler = get_zipf_sampler(self.samplers, sample_range, k)
+        return sampler.rvs()
+
+
+def get_zipf_sampler(samplers, sample_range, k):
+    if (sample_range, k) not in samplers:
+        x = arange(*sample_range)
+        weights = x ** (-float(k))
+        weights /= weights.sum()
+        sampler = stats.rv_discrete(name='bounded_zipf', values=(x, weights))
+        samplers[(sample_range, k)] = sampler
+
+    return samplers[(sample_range, k)]
 
 
 if __name__ == "__main__":
